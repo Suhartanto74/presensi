@@ -1,20 +1,332 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="0; url=https://script.google.com/macros/s/AKfycby2vy-K-iRaWU-EV37CWY2z51YNkcOufCLvgy60SRFIWc4Oqe3BO7oS4Jq9FUUgR_Q9GQ/exec">
-    <script type="text/javascript">
-        window.location.href = "https://script.google.com/macros/s/AKfycby2vy-K-iRaWU-EV37CWY2z51YNkcOufCLvgy60SRFIWc4Oqe3BO7oS4Jq9FUUgR_Q9GQ/exec";
-    </script>
-    <title>Sistem Presensi Informatika</title>
-    <style>
-        body { background: #020617; color: #22d3ee; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Presensi Informatika - SMAN 2 Bengkalis</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@600&display=swap" rel="stylesheet">
+  <style>
+    body { background: #020617; font-family: 'Rajdhani', sans-serif; color: #f8fafc; overflow-x: hidden; margin: 0; }
+    #canvas-particles { position: fixed; top: 0; left: 0; z-index: -1; width: 100%; height: 100%; }
+    .neon-border { border: 2px solid #22d3ee; box-shadow: 0 0 15px #22d3ee; }
+    .gaming-btn { background: linear-gradient(90deg, #0891b2, #0e7490); clip-path: polygon(5% 0, 100% 0, 95% 100%, 0% 100%); transition: 0.3s; cursor: pointer; }
+    .gaming-btn:hover:not(:disabled) { filter: brightness(1.3); box-shadow: 0 0 20px #22d3ee; }
+    .nav-link { font-family: 'Orbitron'; font-size: 10px; letter-spacing: 2px; color: #64748b; transition: 0.3s; border-bottom: 2px solid transparent; text-decoration: none; }
+    .nav-link:hover, .nav-link.active { color: #22d3ee; border-bottom: 2px solid #22d3ee; text-shadow: 0 0 10px #22d3ee; }
+    #hud-overlay { position: absolute; inset: 0; display: none; z-index: 20; pointer-events: none; }
+    .hud-corner { position: absolute; width: 40px; height: 40px; border: 2px solid #22d3ee; animation: pulse 1s infinite; }
+    .top-l { top: 20px; left: 20px; border-right: 0; border-bottom: 0; }
+    .top-r { top: 20px; right: 20px; border-left: 0; border-bottom: 0; }
+    .bot-l { bottom: 20px; left: 20px; border-right: 0; border-top: 0; }
+    .bot-r { bottom: 20px; right: 20px; border-left: 0; border-top: 0; }
+    @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.5; } }
+    .scanner-line { position: absolute; width: 100%; height: 3px; background: #22d3ee; top: 0; animation: scan 2.5s ease-in-out infinite; z-index: 10; }
+    @keyframes scan { 0%, 100% { top: 0%; opacity: 0.2; } 50% { top: 100%; opacity: 1; } }
+    #flash { position: fixed; inset: 0; background: white; opacity: 0; z-index: 9999; transition: opacity 0.1s; pointer-events: none; }
+    #flash.active { opacity: 0.75; }
+    #startup-screen { position: fixed; inset: 0; background: #000; z-index: 999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: all 1.5s ease-in-out; }
+  </style>
 </head>
-<body>
-    <div style="text-align: center;">
-        <p>INITIALIZING SECURE CONNECTION...</p>
-        <small>Redirecting to SMAN 2 Bengkalis Cloud System</small>
+<body class="min-h-screen flex flex-col items-center p-4">
+
+  <canvas id="canvas-particles"></canvas>
+  <button id="fs-toggle" onclick="toggleFullScreen()" class="fixed bottom-6 right-6 z-50 bg-cyan-900/30 border border-cyan-400 text-cyan-400 px-6 py-3 rounded-xl font-['Orbitron'] text-xs tracking-widest hover:bg-cyan-400 hover:text-black">ENTER FULLSCREEN</button>
+
+  <div id="startup-screen">
+    <div class="relative mb-10">
+      <img src="https://iili.io/fD1mbh7.png" class="w-40 drop-shadow-[0_0_30px_#00f2ff]">
+      <div class="absolute -inset-6 border border-cyan-500 rounded-full animate-[spin_8s_linear_infinite] opacity-30"></div>
     </div>
+    <div class="text-center mb-10">
+      <h2 class="font-['Orbitron'] text-cyan-400 tracking-[0.6em] text-2xl font-bold animate-pulse uppercase">Core Online</h2>
+      <p class="text-slate-500 text-[10px] tracking-widest mt-2 uppercase italic">SMAN 2 BENGKALIS - AGENT SYSTEM</p>
+    </div>
+    <button onclick="bootSystem()" class="gaming-btn px-16 py-5 text-white font-bold font-['Orbitron'] tracking-[0.3em] text-xl">RUN SYSTEM</button>
+  </div>
+
+  <div id="flash"></div>
+
+  <audio id="snd-startup" src="https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3" preload="auto"></audio>
+  <audio id="snd-shutter" src="https://assets.mixkit.co/active_storage/sfx/792/792-preview.mp3" preload="auto"></audio>
+  <audio id="snd-denied" src="https://assets.mixkit.co/active_storage/sfx/951/951-preview.mp3" preload="auto"></audio>
+  <audio id="snd-lock" src="https://assets.mixkit.co/active_storage/sfx/131/131-preview.mp3" preload="auto"></audio>
+  <audio id="snd-bgm" src="https://assets.mixkit.co/active_storage/sfx/158/158-preview.mp3" loop preload="auto"></audio>
+
+  <div id="valorant-alert" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-[9999]">
+    <div class="max-w-md w-full mx-4 bg-slate-900 border-2 border-cyan-400 p-8 rounded-2xl text-center">
+      <div id="alert-title" class="font-['Orbitron'] text-xl tracking-widest mb-4 text-cyan-400 uppercase">SYSTEM MESSAGE</div>
+      <div id="alert-text" class="text-md mb-8 text-slate-300"></div>
+      <button onclick="this.closest('#valorant-alert').classList.add('hidden')" class="gaming-btn px-10 py-3 text-white font-bold font-['Orbitron'] tracking-widest text-xs">CONFIRM</button>
+    </div>
+  </div>
+
+  <header class="text-center mb-6">
+    <img src="https://iili.io/ftSd2kP.png" class="w-16 mx-auto mb-2 drop-shadow-[0_0_10px_#22d3ee]">
+    <h1 class="text-3xl font-bold font-['Orbitron'] italic uppercase">Presensi Informatika</h1>
+    <div class="w-full max-w-lg mx-auto overflow-hidden bg-cyan-950/20 py-1 rounded-full border border-cyan-500/20 mt-4">
+      <marquee class="text-[9px] text-cyan-500/80 font-bold tracking-widest uppercase">
+        MISSION: SECURE THE FUTURE THROUGH TECHNOLOGY • ANALYZING AGENT ELIGIBILITY • STATUS: ALL SYSTEMS NOMINAL.
+      </marquee>
+    </div>
+  </header>
+
+  <div class="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-1 bg-slate-900/60 p-6 rounded-lg neon-border backdrop-blur-md">
+      <div class="space-y-4">
+        <select id="kelas" onchange="updateView()" class="w-full bg-slate-800 border border-slate-700 p-3 rounded text-white outline-none focus:border-cyan-400 font-bold">
+          <option value="">-- AUTHORIZING CLASS --</option>
+        </select>
+        <select id="nama" class="w-full bg-slate-800 border border-slate-700 p-3 rounded text-white outline-none focus:border-cyan-400">
+          <option value="">-- SELECT IDENTITY --</option>
+        </select>
+        <div class="relative border-2 border-slate-800 rounded-lg overflow-hidden aspect-video bg-black">
+          <div class="scanner-line"></div>
+          <div id="hud-overlay">
+            <div class="hud-corner top-l"></div><div class="hud-corner top-r"></div>
+            <div class="hud-corner bot-l"></div><div class="hud-corner bot-r"></div>
+          </div>
+          <video id="video" autoplay muted playsinline class="w-full h-full scale-x-[-1] object-cover"></video>
+        </div>
+        <button onclick="capture()" id="btn-absen" class="w-full gaming-btn py-4 text-xl font-bold text-white font-['Orbitron'] tracking-widest">
+          INITIALIZE SCAN
+        </button>
+      </div>
+    </div>
+
+    <div class="lg:col-span-1 bg-slate-900/80 p-6 rounded-lg border border-slate-700 h-[550px] flex flex-col">
+      <h2 class="font-['Orbitron'] text-cyan-400 border-b border-cyan-900 pb-2 mb-4">LIVE FEED STATUS</h2>
+      <div id="last-photo-box" class="hidden mb-4 p-3 bg-cyan-500/10 border border-cyan-500 rounded text-center">
+        <img id="last-photo" src="" class="w-20 h-20 mx-auto rounded-full border-2 border-cyan-400 object-cover mb-2">
+        <p id="last-name" class="text-[11px] font-bold text-white uppercase tracking-widest"></p>
+      </div>
+      <div class="grid grid-cols-2 gap-2 mb-4">
+        <div class="bg-slate-800/50 p-2 border-l-4 border-cyan-500 text-center">
+          <div class="text-[9px] font-['Orbitron'] uppercase opacity-60">Secured</div>
+          <div id="count-hadir" class="text-xl font-bold text-cyan-400">0</div>
+        </div>
+        <div class="bg-slate-800/50 p-2 border-l-4 border-red-500 text-center">
+          <div class="text-[9px] font-['Orbitron'] uppercase opacity-60">Pending</div>
+          <div id="count-belum" class="text-xl font-bold text-red-500">0</div>
+        </div>
+      </div>
+      <div class="overflow-y-auto flex-1 text-[11px]">
+        <h3 class="text-red-400 mb-2 font-bold uppercase">● Awaiting Entry</h3>
+        <div id="list-belum" class="flex flex-wrap gap-1 justify-center">-- Pilih Kelas --</div>
+        <hr class="border-slate-800 my-4">
+        <h3 class="text-cyan-400 mb-2 font-bold uppercase">● Area Secured</h3>
+        <div id="list-hadir" class="flex flex-wrap gap-1 justify-center">-- No Data --</div>
+      </div>
+    </div>
+
+    <div class="lg:col-span-1 bg-slate-900/40 p-6 rounded-lg border border-slate-800 h-[550px] flex flex-col">
+      <h2 class="font-['Orbitron'] text-yellow-400 border-b border-yellow-900/30 pb-2 mb-4">🏆 Elite Agents</h2>
+      <div id="top-agents-list" class="space-y-2 overflow-y-auto flex-1"></div>
+    </div>
+  </div>
+
+  <footer class="mt-8 py-6 text-slate-600 text-[10px] text-center">
+    Created by Suhartanto (C) 2026
+  </footer>
+
+  <script>
+    // --- KONFIGURASI PENTING ---
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby2vy-K-iRaWU-EV37CWY2z51YNkcOufCLvgy60SRFIWc4Oqe3BO7oS4Jq9FUUgR_Q9GQ/exec"; 
+
+    let video, btn, hud, masterData = [];
+    let sndStartup, sndShutter, sndDenied, sndLock, sndBgm;
+
+    const canvas = document.getElementById('canvas-particles');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+
+    function initParticles() {
+      canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+      particles = [];
+      for(let i=0; i<60; i++) {
+        particles.push({x: Math.random()*canvas.width, y: Math.random()*canvas.height, size: Math.random()*2+1, speedX: Math.random()*0.4-0.2, speedY: Math.random()*0.4-0.2});
+      }
+    }
+
+    function drawParticles() {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle = 'rgba(34,211,238,0.35)';
+      particles.forEach(p => {
+        p.x += p.speedX; p.y += p.speedY;
+        if(p.x<0||p.x>canvas.width) p.speedX*=-1;
+        if(p.y<0||p.y>canvas.height) p.speedY*=-1;
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill();
+      });
+      requestAnimationFrame(drawParticles);
+    }
+
+    function toggleFullScreen() {
+      if(!document.fullscreenElement) document.documentElement.requestFullscreen();
+      else document.exitFullscreen();
+    }
+
+    function showA(msg, color) {
+      const el = document.getElementById('valorant-alert');
+      document.getElementById('alert-text').innerText = msg;
+      document.getElementById('alert-title').style.color = color;
+      el.classList.remove('hidden');
+    }
+
+    function speak(text) {
+      if('speechSynthesis' in window) {
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'id-ID'; u.rate = 0.95;
+        window.speechSynthesis.speak(u);
+      }
+    }
+
+    function bootSystem() {
+      // Langsung inisialisasi kamera saat klik (User Gesture)
+      initCamera();
+
+      document.getElementById('startup-screen').style.opacity = '0';
+      if(sndStartup) sndStartup.play().catch(()=>{});
+      if(sndBgm) { sndBgm.volume = 0.25; sndBgm.play().catch(()=>{}); }
+
+      setTimeout(() => {
+        document.getElementById('startup-screen').style.display = 'none';
+        speak("Semua sistem online. Selamat datang Agent.");
+        initParticles();
+        drawParticles();
+        loadInitialData();
+        loadTopAgents();
+      }, 1200);
+    }
+
+    function initCamera() {
+      video = document.getElementById('video');
+      navigator.mediaDevices.getUserMedia({video: {facingMode:"user"}})
+        .then(s => {
+            video.srcObject = s;
+            video.play();
+        })
+        .catch((err) => {
+            console.error(err);
+            showA("KAMERA BLOCKED: Pastikan izin diberikan di browser dan gunakan HTTPS.", "#ff4655");
+        });
+    }
+
+    window.onload = function() {
+      sndStartup = document.getElementById('snd-startup');
+      sndShutter = document.getElementById('snd-shutter');
+      sndDenied  = document.getElementById('snd-denied');
+      sndLock    = document.getElementById('snd-lock');
+      sndBgm     = document.getElementById('snd-bgm');
+      video = document.getElementById('video');
+      btn   = document.getElementById('btn-absen');
+      hud   = document.getElementById('hud-overlay');
+    };
+
+    // Fungsi Fetch ke Backend Google Apps Script
+    function loadInitialData() {
+        fetch(SCRIPT_URL + "?method=getDataSiswa")
+        .then(res => res.json())
+        .then(data => {
+            masterData = data;
+            const sel = document.getElementById('kelas');
+            sel.innerHTML = '<option value="">-- AUTHORIZING CLASS --</option>';
+            [...new Set(data.map(i => i.kelas))].sort().forEach(k => {
+                let o = document.createElement('option'); o.value = k; o.textContent = k; sel.add(o);
+            });
+        })
+        .catch(err => console.error("Gagal load data:", err));
+    }
+
+    function updateView() {
+      const kls = document.getElementById('kelas').value;
+      const nSel = document.getElementById('nama');
+      nSel.innerHTML = '<option value="">-- SELECT IDENTITY --</option>';
+      masterData.filter(s => s.kelas === kls).sort((a,b)=>a.nama.localeCompare(b.nama)).forEach(s => {
+        let o = document.createElement('option'); o.value = s.nama; o.textContent = s.nama; nSel.add(o);
+      });
+      updateLiveBoard();
+    }
+
+    function updateLiveBoard() {
+      const kls = document.getElementById('kelas').value;
+      if(!kls) return;
+      fetch(SCRIPT_URL + "?method=getLiveStatus&kelas=" + encodeURIComponent(kls))
+        .then(res => res.json())
+        .then(res => {
+          document.getElementById('count-hadir').innerText = res.totalHadir;
+          document.getElementById('count-belum').innerText = res.totalBelum;
+          document.getElementById('list-belum').innerHTML = res.belumList.map(n => `<span class="bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded text-red-300">${n}</span>`).join(' ');
+          document.getElementById('list-hadir').innerHTML = res.hadirList.map(n => `<span class="bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded text-cyan-200">★ ${n}</span>`).join(' ');
+        });
+    }
+
+    function loadTopAgents() {
+      fetch(SCRIPT_URL + "?method=getExtendedStats")
+        .then(res => res.json())
+        .then(res => {
+          document.getElementById('top-agents-list').innerHTML = res.topAgents.map((a,i) => `
+            <div class="p-2 bg-cyan-900/10 border-l-2 border-cyan-800 flex justify-between">
+              <span class="text-[10px] uppercase">#${i+1} ${a.nama}</span>
+              <span class="text-cyan-400">${a.count} XP</span>
+            </div>
+          `).join('');
+        });
+    }
+
+    function capture() {
+      const nama = document.getElementById('nama').value;
+      const kelas = document.getElementById('kelas').value;
+      if(!nama || !kelas) return showA("IDENTITY REQUIRED!", "#ff4655");
+
+      hud.style.display = 'block';
+      if(sndLock) sndLock.play().catch(()=>{});
+      btn.innerText = "VERIFYING IDENTITY..."; btn.disabled = true;
+
+      setTimeout(() => {
+        if(sndShutter) sndShutter.play().catch(()=>{});
+        document.getElementById('flash').classList.add('active');
+        setTimeout(() => document.getElementById('flash').classList.remove('active'), 150);
+
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = video.videoWidth || 640;
+        tempCanvas.height = video.videoHeight || 480;
+        const tctx = tempCanvas.getContext('2d');
+        tctx.translate(tempCanvas.width, 0); tctx.scale(-1,1);
+        tctx.drawImage(video, 0, 0);
+        tctx.setTransform(1,0,0,1,0,0);
+        tctx.strokeStyle = "#22d3ee"; tctx.lineWidth = 15;
+        tctx.strokeRect(0,0,tempCanvas.width,tempCanvas.height);
+        tctx.font = "italic bold 35px Orbitron"; tctx.fillStyle = "rgba(34,211,238,0.8)";
+        tctx.fillText("SECURED", 40, tempCanvas.height-40);
+
+        const imgData = tempCanvas.toDataURL('image/jpeg', 0.85);
+
+        document.getElementById('last-photo').src = imgData;
+        document.getElementById('last-name').innerText = nama + " (SYNCHING...)";
+        document.getElementById('last-photo-box').classList.remove('hidden');
+
+        // PROSES KIRIM KE GOOGLE APPS SCRIPT
+        fetch(SCRIPT_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({nama: nama, kelas: kelas, image: imgData})
+        })
+        .then(() => {
+            hud.style.display = 'none';
+            btn.innerText = "INITIALIZE SCAN"; btn.disabled = false;
+            speak(`Selamat datang, Agent ${nama.split(' ')[0]}`);
+            document.getElementById('last-name').innerText = nama + " (SECURED)";
+            showA("ACCESS GRANTED: Presence secured. GGWP!", "#00f2ff");
+            setTimeout(updateLiveBoard, 2000);
+        })
+        .catch(err => {
+            hud.style.display = 'none';
+            btn.disabled = false;
+            showA("CONNECTION ERROR: Periksa jaringan Anda.", "#ff4655");
+        });
+      }, 1500);
+    }
+  </script>
 </body>
 </html>
